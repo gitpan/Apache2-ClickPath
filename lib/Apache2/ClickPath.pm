@@ -24,7 +24,7 @@ use MIME::Base64 ();
 
 use Apache2::ClickPath::_parse ();
 
-our $VERSION = '1.3';
+our $VERSION = '1.4';
 our $rcounter=int rand 0x10000;
 
 my @directives=
@@ -415,6 +415,12 @@ sub OutputFilter {
 
   unless ($f->ctx) {
     my $r=$f->r;
+
+    if( $r->main ) {
+      # skip filtering for subrequests
+      $f->remove;
+      return Apache2::Const::DECLINED;
+    }
 
     $sess=$r->subprocess_env('CGI_SESSION');
     unless( defined $sess and length $sess ) {
@@ -1031,31 +1037,6 @@ The session can be logged as C<%{SESSION}e> at end of a logfile line.
 Depending on your content and your users community HTTP proxies can
 serve a significant part of your traffic. With C<Apache2::ClickPath>
 almost all request have to be served by your server.
-
-=head2 Using with SSI
-
-Server Side Includes are also implemented as an output filter. Normally
-Perl output filters are called I<before> mod_include leading to
-unexpected results if an SSI statement generated links. On the other
-hand one can configure the C<INCLUDES> filter with C<PerlSetOutputFilter>
-which preserves the order given in the configuration file.
-Unfortunately there is no C<PerlSetOutputFilterByType> directive and
-and the C<INCLUDES> filter processes everything independend of the
-C<Content-Type>. Thus, also images and other stuff is scanned for
-SSI statements.
-
-With Apache 2.2 there will be a filter dispatcher module that can maybe
-address this problem.
-
-Currently my only solution to this problem is a little module
-C<Apache2::RemoveNextFilterIfNotTextHtml> and setting up the filter
-chain with C<PerlOutputFilterHandler> and C<PerlSetOutputFilter>:
-
- PerlOutputFilterHandler Apache2::RemoveNextFilterIfNotTextHtml
- PerlSetOutputFilter INCLUDES
- PerlOutputFilterHandler Apache2::ClickPath::OutputFilter
-
-Don't hesitate to contact me if you are interested in this little module.
 
 =head2 Debugging
 

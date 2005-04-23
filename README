@@ -260,30 +260,6 @@ DESCRIPTION
     serve a significant part of your traffic. With "Apache2::ClickPath"
     almost all request have to be served by your server.
 
-  Using with SSI
-    Server Side Includes are also implemented as an output filter. Normally
-    Perl output filters are called *before* mod_include leading to
-    unexpected results if an SSI statement generated links. On the other
-    hand one can configure the "INCLUDES" filter with "PerlSetOutputFilter"
-    which preserves the order given in the configuration file. Unfortunately
-    there is no "PerlSetOutputFilterByType" directive and and the "INCLUDES"
-    filter processes everything independend of the "Content-Type". Thus,
-    also images and other stuff is scanned for SSI statements.
-
-    With Apache 2.2 there will be a filter dispatcher module that can maybe
-    address this problem.
-
-    Currently my only solution to this problem is a little module
-    "Apache2::RemoveNextFilterIfNotTextHtml" and setting up the filter chain
-    with "PerlOutputFilterHandler" and "PerlSetOutputFilter":
-
-     PerlOutputFilterHandler Apache2::RemoveNextFilterIfNotTextHtml
-     PerlSetOutputFilter INCLUDES
-     PerlOutputFilterHandler Apache2::ClickPath::OutputFilter
-
-    Don't hesitate to contact me if you are interested in this little
-    module.
-
   Debugging
     Sometimes it is useful to know the information encoded in a session
     identifier. This is why Apache2::ClickPath::Decode exists.

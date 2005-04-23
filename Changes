@@ -49,3 +49,8 @@ Revision history for Perl extension Apache::ClickPath.
 	- Adaption to mod_perl-RC5
 	- Renaming from Apache::ClickPath to Apache2::ClickPath
 	- SPEC file added
+
+1.4   Sat Apr 23 21:19:56 CEST 2005
+	* Torsten Foertsch <torsten.foertsch@gmx.net>
+	- now I have finally sorted out the SSI problems. No other
+	  module is required anymore.
