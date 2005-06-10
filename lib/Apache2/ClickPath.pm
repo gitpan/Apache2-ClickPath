@@ -24,7 +24,7 @@ use MIME::Base64 ();
 
 use Apache2::ClickPath::_parse ();
 
-our $VERSION = '1.5';
+our $VERSION = '1.6';
 our $rcounter=int rand 0x10000;
 
 my @directives=

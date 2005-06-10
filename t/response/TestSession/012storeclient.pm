@@ -7,12 +7,22 @@ use Apache2::RequestIO ();
 use Apache2::Const -compile => qw(OK);
 use Apache2::ClickPath::StoreClient;
 
+my $bigvalue='x'x(1024*1024);
+
 sub handler {
   my $r=shift;
 
   Apache2::RequestUtil->request( $r );
 
   my $ctx=Apache2::ClickPath::StoreClient->new;
+
+  if( $r->args eq 'big' ) {
+    my $rc=$ctx->set( blob=>$bigvalue ) && $ctx->get( 'blob' ) eq $bigvalue;
+    $r->content_type( 'text/plain' );
+    $r->print( $rc );
+
+    return Apache2::Const::OK;
+  }
 
   my $v=$ctx->get( 'value' );
 

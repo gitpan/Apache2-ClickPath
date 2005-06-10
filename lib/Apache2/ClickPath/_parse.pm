@@ -2,6 +2,8 @@ package Apache2::ClickPath::_parse;
 
 use strict;
 
+our $VERSION = '1.6';
+
 sub MachineTable {
   my $conf=shift;
   my $t={};

@@ -30,7 +30,7 @@ use Cwd ();
 use Perl::AtEndOfScope;
 use Fcntl qw/:flock/;
 
-our $VERSION = '1.5';
+our $VERSION = '1.6';
 
 our $cleanupdefault=60;
 
@@ -212,9 +212,8 @@ sub cleanup {
 
 sub handler {
   my $r=shift;
-  my $restorecwd=Perl::AtEndOfScope->new( sub{chdir shift}, Cwd::getcwd );
 
-  $CGI::Q=CGI->new( $r );
+  my $restorecwd=Perl::AtEndOfScope->new( sub{chdir shift}, Cwd::getcwd );
 
   my $cfg=Apache2::Module::get_config( __PACKAGE__, $r->server );
 
@@ -227,15 +226,25 @@ sub handler {
       unless( $r->connection->keepalives );
   }
 
-  my $session=CGI::param( 's' );
-  my $k=CGI::param( 'k' );
+  my ($what, $session, $k, $v, $param);
+
+  if( $r->main and		# is subreq
+      $param=$r->pnotes( 'Apache2::ClickPath::StoreClient::storeparams' ) ) {
+    ($what, $session, $k, $v)=@{$param}{qw{a s k v}};
+  } else {
+    $CGI::Q=CGI->new( $r );
+    $what=CGI::param( 'a' );
+    $session=CGI::param( 's' );
+    $k=CGI::param( 'k' );
+    $v=CGI::param( 'v' );
+  }
   $d.='/'.$session;
 
   $session=~m!^[^/]+$! or return Apache2::Const::HTTP_BAD_REQUEST;
   $k=~m!^\w+$! or return Apache2::Const::HTTP_BAD_REQUEST;
 
   my $time=time;
-  if( CGI::param( 'a' ) eq 'set' ) {
+  if( $what eq 'set' ) {
     unless( chdir $d ) {
       mkdir $d or do {
 	$r->log->error( '['.__PACKAGE__."] Cannot create directory $d: $!" );
@@ -251,7 +260,7 @@ sub handler {
       $r->log->error( '['.__PACKAGE__."] Cannot write $d/$k: $!" );
       return Apache2::Const::SERVER_ERROR;
     };
-    print $f CGI::param( 'v' ) or do {
+    print $f $v or do {
       $r->log->error( '['.__PACKAGE__."] Cannot write $d/$k: $!" );
       return Apache2::Const::SERVER_ERROR;
     };
@@ -259,7 +268,7 @@ sub handler {
     $r->content_type( 'text/plain' );
     $r->print( 'ok' );
     return Apache2::Const::OK;
-  } elsif( CGI::param( 'a' ) eq 'get' ) {
+  } elsif( $what eq 'get' ) {
     chdir $d or return Apache2::Const::NOT_FOUND;
     utime $time, $time, '.';	# update times to prevent cleanup
     return Apache2::Const::NOT_FOUND unless( -f $k );

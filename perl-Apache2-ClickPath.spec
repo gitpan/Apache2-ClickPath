@@ -9,7 +9,7 @@ Requires:     perl = %{perl_version}
 Requires:     p_mod_perl >= 1.999022
 Autoreqprov:  on
 Summary:      Apache2::ClickPath
-Version:      1.5
+Version:      1.6
 Release:      1
 Source:       Apache2-ClickPath-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build

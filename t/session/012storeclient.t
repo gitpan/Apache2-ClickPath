@@ -48,7 +48,7 @@ if( $ENV{QUERY_STRING} eq 'add' ) {
 }
 EOF
 
-plan tests => 7;
+plan tests => 8;
 
 my ($res, $session, $store);
 
@@ -91,6 +91,9 @@ $res=GET_BODY( "$session/TestSession__012storeclient?add" );
 ok t_cmp( $res, '1', 'value incremented again' );
 
 sleep 1;
+
+$res=GET_BODY( "$session/TestSession__012storeclient?big" );
+ok t_cmp( $res, '1', 'set and get a big value' );
 
 # Local Variables: #
 # mode: cperl #

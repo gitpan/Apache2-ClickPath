@@ -9,7 +9,11 @@ use LWP::UserAgent;
 use LWP::ConnCache;
 use Class::Member qw{session store store_is_local ua lasterror _r};
 
+our $VERSION = '1.6';
+
 my $MOD_PERL;
+
+my $apache_ok;
 
 BEGIN {
   $MOD_PERL=0;
@@ -17,6 +21,14 @@ BEGIN {
     $MOD_PERL=2;
     require Apache2::RequestRec;
     require Apache2::RequestUtil;
+    require Apache2::RequestIO;
+    require Apache2::Filter;
+    require Apache2::SubRequest;
+    require APR::Brigade;
+    require APR::Bucket;
+    require Apache2::Const;
+    Apache2::Const->import( -compile=>qw{OK} );
+    $apache_ok=&Apache2::Const::OK;
   }
 }
 
@@ -29,12 +41,12 @@ sub new {
     $I->session=$I->_r->subprocess_env('SESSION');
     $I->store=$I->_r->subprocess_env('ClickPathMachineStore');
 
-    #$I->store_is_local=$I->store=~m!^/!;
-    if( $I->store=~m!^/! ) {
-      my $https=($I->_r->subprocess_env('HTTPS')=~/on/i ? 'https' : 'http');
-      $I->store=("$https://".$I->_r->get_server_name.":".
-		 $I->_r->get_server_port.$I->store);
-    }
+    $I->store_is_local=$I->store=~m!^/!;
+#    if( $I->store=~m!^/! ) {
+#      my $https=($I->_r->subprocess_env('HTTPS')=~/on/i ? 'https' : 'http');
+#      $I->store=("$https://".$I->_r->get_server_name.":".
+#		 $I->_r->get_server_port.$I->store);
+#    }
   } else {
     $I->session=$ENV{SESSION};
     $I->store=$ENV{ClickPathMachineStore};
@@ -52,10 +64,10 @@ sub new {
 
   return unless( length $I->store );
 
-  #unless( $I->store_is_local ) {
+  unless( $I->store_is_local ) {
     $I->ua=LWP::UserAgent->new( timeout=>5,
 				keep_alive=>3 );
-  #}
+  }
 
   return $I;
 }
@@ -63,22 +75,59 @@ sub new {
 sub _get {
   my ($I,$k)=@_;
 
-#  if( $I->store_is_local ) {
-#  } else {
+  if( $I->store_is_local ) {
+    my $subr=$I->_r->lookup_uri( $I->store );
+    $subr->pnotes( __PACKAGE__."::storeparams"=>{'a'=>'get',
+						 's'=>$I->session,
+						 'k'=>$k} );
+    my $content;
+    $subr->add_output_filter( sub {
+				my ($f, $bb) = @_;
+				while (my $e = $bb->first) {
+				  $e->read(my $buf);
+				  $content.=$buf;
+				  $e->delete;
+				}
+				return $apache_ok;
+			      });
+    $I->lasterror=$subr->run;
+    $I->lasterror=200 if( $I->lasterror==$apache_ok );
+    return $content if( $I->lasterror==200 );
+    return;
+  } else {
     my $res=$I->ua->post( $I->store, {'a'=>'get',
 				      's'=>$I->session,
 				      'k'=>$k} );
     $I->lasterror=$res->code;
     return $res->content if( $res->code==200 );
     return;
-#  }
+  }
 }
 
 sub _set {
   my ($I,$k,$v)=@_;
 
-#  if( $I->store_is_local ) {
-#  } else {
+  if( $I->store_is_local ) {
+    my $subr=$I->_r->lookup_uri( $I->store );
+    $subr->pnotes( __PACKAGE__."::storeparams"=>{'a'=>'set',
+						 's'=>$I->session,
+						 'k'=>$k,
+						 'v'=>$v} );
+    my $content;
+    $subr->add_output_filter( sub {
+				my ($f, $bb) = @_;
+				while (my $e = $bb->first) {
+				  $e->read(my $buf);
+				  $content.=$buf;
+				  $e->delete;
+				}
+				return $apache_ok;
+			      });
+    $I->lasterror=$subr->run;
+    $I->lasterror=200 if( $I->lasterror==$apache_ok );
+    return 1 if( $I->lasterror==200 );
+    return;
+  } else {
     my $res=$I->ua->post( $I->store, {'a'=>'set',
 				      's'=>$I->session,
 				      'k'=>$k,
@@ -86,7 +135,7 @@ sub _set {
     $I->lasterror=$res->code;
     return 1 if( $res->code==200 );
     return;
-#  }
+  }
 }
 
 sub get {
@@ -146,8 +195,9 @@ or a CGI script.
 If called from a mod_perl handler it requires the GlobalRequest to be set.
 See L<Apache2::RequestUtil> for more information.
 
-For communication with the store an L<LWP::UserAgent> is used. It is
-configured to use keep-alive requests.
+For communication with the store an L<LWP::UserAgent> is used unless a local
+store is used, see L<"Local Store"> below. It is configured to use
+keep-alive requests.
 
 =head1 METHODS
 
@@ -185,9 +235,24 @@ L<Apache2::ClickPath::Store> for a list of possible codes.
 =item B<< $ua=$store->ua >> or B<< $store->ua=$ua >>
 
 provides access to the internal L<LWP::UserAgent>. In case the store is
-behind a proxy this can be useful.
+behind a proxy this can be useful. If a local store is used no user agent
+is created, see L<"Local Store"> below.
 
 =back
+
+=head1 Local Store
+
+If this module is called from within a modperl handler and the store address
+passed in the C<ClickPathMachineStore> environment variable starts with
+a slash (C</>), i.e. the machine part of the URL is omitted, then the store
+is taken as local. That means the WEB server handling the current request
+is also providing the store. Hence, access to the store can be short-circuited
+using a simple sub-request instead of a full-featured user agent.
+
+In this case the C<ua> method will return C<undef>.
+
+Using a local store is the fastest method to access the data. Use it if
+you can spare an URI for the store on your main server.
 
 =head1 SEE ALSO
 
