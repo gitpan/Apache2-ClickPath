@@ -1,4 +1,4 @@
-package TestSession::2output_headers;
+package TestSession::002output_headers;
 
 use strict;
 use Apache2::RequestRec ();
@@ -36,4 +36,4 @@ sub handler {
 __DATA__
 
 SetHandler modperl
-PerlResponseHandler TestSession::2output_headers
+PerlResponseHandler TestSession::002output_headers

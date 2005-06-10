@@ -1,4 +1,4 @@
-package TestSession::1session_generation;
+package TestSession::001session_generation;
 
 use strict;
 use Apache2::RequestRec ();
@@ -20,4 +20,4 @@ sub handler {
 __DATA__
 
 SetHandler modperl
-PerlResponseHandler TestSession::1session_generation
+PerlResponseHandler TestSession::001session_generation

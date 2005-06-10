@@ -43,6 +43,7 @@ sub main {
     print "Session: ".$decoder->session."\n";
     print "  Creation Time: ".localtime( $decoder->creation_time )." (".$decoder->creation_time.")\n";
     print "  Server ID: ".$decoder->server_id."\n";
+    print "  Server Name: ".$decoder->server_name."\n";
     print "  Server PID: ".$decoder->server_pid."\n";
     print "  Connection ID: ".$decoder->connection_id."\n";
     print "  Seq. #: ".$decoder->seq_number."\n";

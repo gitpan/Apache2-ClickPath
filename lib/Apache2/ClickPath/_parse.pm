@@ -2,6 +2,36 @@ package Apache2::ClickPath::_parse;
 
 use strict;
 
+sub MachineTable {
+  my $conf=shift;
+  my $t={};
+  my $r={};
+  my $i=0;
+  foreach my $line (split /\r?\n/, $conf) {
+    next if( $line=~/^\s*#/ ); 	# skip comments
+    $i++;
+    my @l=$line=~/\s*(\S+)(?:\s+(\w+)(?:\s+(.+))?)?/;
+    $l[2]=~s/\s*$// if( defined $l[2] ); # strip trailing spaces
+    if( @l ) {
+      $l[1]=$i unless( defined $l[1] );
+      if( $l[0]=~/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/ and
+	  $1<256 and $2<256 and $3<256 and $4<256 ) {
+	$t->{$l[0]}=[@l[1,2]];
+	$r->{$l[1]}=[@l[0,2]];
+      } else {
+	my @ip;
+	(undef, undef, undef, undef, @ip)=gethostbyname( $l[0] );
+	warn "WARNING: Cannot resolve $l[0] -- ignoring\n" unless( @ip );
+	$r->{$l[1]}=[sprintf( '%vd', $ip[0] ), $l[2]];
+	foreach my $ip (@ip) {
+	  $t->{sprintf '%vd', $ip}=[@l[1,2]];
+	}
+      }
+    }
+  }
+  return $t, $r;
+}
+
 sub UAExceptions {
   my $conf=shift;
   my $a=[];

@@ -1,4 +1,5 @@
 PerlLoadModule Apache2::ClickPath
+PerlLoadModule Apache2::ClickPath::Store
 <ClickPathUAExceptions>
 Google     Googlebot
 MSN        msnbot
@@ -115,8 +116,22 @@ Options Indexes Includes ExecCGI
 SetHandler cgi-script
 </Directory>
 LogFormat "%h %l %u %t \"%m %U%q %H\" %>s %b \"%{Referer}i\" \"%{User-agent}i\" \"%{SESSION}e\""
+LogLevel debug
 
 ClickPathUAExceptionsFile "@ServerRoot@/UAExceptions"
+
+ClickPathStoreDirectory "store"
+ClickPathStorePath "/store"
+ClickPathStoreTimeout 2
+ClickPathStoreCleanupInterval 1
+
+KeepAlive On
+KeepAliveTimeout 30
+
+<ClickPathMachineTable>
+localhost A /store
+127.0.0.13 B http://klaus:32810/store
+</ClickPathMachineTable>
 </VirtualHost>
 
 <VirtualHost FriendlySession>
@@ -153,6 +168,11 @@ LogFormat "%h %l %u %t \"%m %U%q %H\" %>s %b \"%{Referer}i\" \"%{User-agent}i\" 
   mixed.friendly.org    param(ld) uri ( 3 )     m
 </ClickPathFriendlySessions>
 ClickPathFriendlySessionsFile "@ServerRoot@/FriendlySessions"
+
+<ClickPathMachineTable>
+localhost A
+127.0.0.13 B
+</ClickPathMachineTable>
 </VirtualHost>
 
 <VirtualHost Without_UAExc>
@@ -168,4 +188,9 @@ Options Indexes Includes ExecCGI
 SetHandler cgi-script
 </Directory>
 LogFormat "%h %l %u %t \"%m %U%q %H\" %>s %b \"%{Referer}i\" \"%{User-agent}i\" \"%{SESSION}e\""
+
+<ClickPathMachineTable>
+localhost
+127.0.0.13
+</ClickPathMachineTable>
 </VirtualHost>

@@ -15,16 +15,16 @@ use Apache2::RequestRec ();
 use Apache2::Module ();
 use Apache2::CmdParms ();
 use Apache2::Directive ();
+use Apache2::Log ();
 use Apache2::Const -compile => qw(DECLINED OK
 				  OR_ALL RSRC_CONF
 				  TAKE1 RAW_ARGS NO_ARGS);
 
-use Time::HiRes ();
 use MIME::Base64 ();
 
 use Apache2::ClickPath::_parse ();
 
-our $VERSION = '1.4';
+our $VERSION = '1.5';
 our $rcounter=int rand 0x10000;
 
 my @directives=
@@ -87,7 +87,7 @@ name2 regexp2
 </ClickPathFriendlySessions>',
    },
    {
-    name         => '</ClickFriendlySessions>',
+    name         => '</ClickPathFriendlySessions>',
     func         => __PACKAGE__ . '::ClickPathFriendlySessionsEND',
     req_override => Apache2::Const::OR_ALL,
     args_how     => Apache2::Const::NO_ARGS,
@@ -99,6 +99,24 @@ name2 regexp2
     req_override => Apache2::Const::RSRC_CONF,
     args_how     => Apache2::Const::RAW_ARGS,
     errmsg       => 'ClickPathMachine string',
+   },
+   {
+    name         => '<ClickPathMachineTable',
+    func         => __PACKAGE__ . '::ClickPathMachineTable',
+    req_override => Apache2::Const::RSRC_CONF,
+    args_how     => Apache2::Const::RAW_ARGS,
+    errmsg       => '<ClickPathMachineTable>
+ip_ext1|name_ext1 [name1 [ip_int1|name_int1]]
+ip_ext2|name_ext2 [name2 [ip_int1|name_int1]]
+...
+</ClickPathMachineTable>',
+   },
+   {
+    name         => '</ClickPathMachineTable>',
+    func         => __PACKAGE__ . '::ClickPathMachineTableEND',
+    req_override => Apache2::Const::OR_ALL,
+    args_how     => Apache2::Const::NO_ARGS,
+    errmsg       => '</ClickPathMachineTable> without <ClickPathMachineTable>',
    },
   );
 Apache2::Module::add(__PACKAGE__, \@directives);
@@ -156,6 +174,18 @@ sub ClickPathMachine {
     unless( $arg=~/^\w*$/ );
 
   $I->{"ClickPathMachine"}=$arg;
+}
+
+sub ClickPathMachineTable {
+  my($I, $parms, @args)=@_;
+
+  @{$I}{"ClickPathMachineTable", "ClickPathMachineReverse"}
+    =Apache2::ClickPath::_parse::MachineTable( $parms->directive->as_string );
+}
+
+sub ClickPathMachineTableEND {
+  my($I, $parms, $arg)=@_;
+  die "ERROR: </ClickPathMachineTable> without <ClickPathMachineTable>\n";
 }
 
 sub _get_ua_exc {
@@ -257,6 +287,10 @@ sub handler {
 			  $pr->subprocess_env( 'SESSION_START' ) );
       $r->subprocess_env( SESSION_AGE=>
 			  $pr->subprocess_env( 'SESSION_AGE' ) );
+      $r->subprocess_env('ClickPathMachineName'=>
+			  $pr->subprocess_env( 'ClickPathMachineName' ) );
+      my $store=$pr->subprocess_env( 'ClickPathMachineStore' );
+      $r->subprocess_env('ClickPathMachineStore'=>$store) if( length $store );
       $r->subprocess_env( SESSION=>$session );
       $newsession=$pr->pnotes( __PACKAGE__.'::newsession' );
       $r->pnotes( __PACKAGE__.'::newsession'=>$newsession )
@@ -283,8 +317,8 @@ sub handler {
     (undef, $rtab)=_get_friendly_session( $cf );
     $rtab={} unless( $rtab );
     if( @l==3 and exists $rtab->{$l[1]} ) {
-      my %h=('**'=>'*', '*!'=>'!', '*.'=>'=', '!'=>"\n");
-      $l[2]=~s/(\*[*!.]|!)/$h{$1}/ge;
+      my %h=('**'=>'*', '*!'=>'!', '*.'=>'=', '!'=>"\n", '*x'=>'/', '*y'=>'#');
+      $l[2]=~s/(\*[*!.xy]|!)/$h{$1}/ge;
       $r->subprocess_env( REMOTE_SESSION=>$l[2] );
       $r->subprocess_env( REMOTE_SESSION_HOST=>$rtab->{$l[1]} );
     } else {
@@ -294,15 +328,35 @@ sub handler {
     # extract session start time
     $l[0]=~tr[@\-][+/];
     @l=split /:/, $l[0], 2;	# $l[0]: IP Addr, $l[1]: session
+    if( exists $cf->{ClickPathMachineReverse} ) {
+      if( exists $cf->{ClickPathMachineReverse}->{$l[0]} ) {
+	$r->subprocess_env('ClickPathMachineName'=>$l[0]);
+	$r->subprocess_env('ClickPathMachineStore'=>
+			   $cf->{"ClickPathMachineReverse"}->{$l[0]}->[1])
+	  if( length $cf->{"ClickPathMachineReverse"}->{$l[0]}->[1] );
+      } else {
+	$r->log->error( "Caught invalid session: Unknown Machine name '$l[0]'" );
+	$r->subprocess_env( INVALID_SESSION=>$r->subprocess_env( 'SESSION' ) );
+	$r->subprocess_env->unset( 'SESSION' );
+	$r->subprocess_env->unset( 'CGI_SESSION' );
+	$r->subprocess_env->unset( 'REMOTE_SESSION' );
+	$r->subprocess_env->unset( 'REMOTE_SESSION_HOST' );
+	$newsession++;
+	goto NEWSESSION;
+      }
+    }
     @l=unpack "NNnNn", MIME::Base64::decode_base64( $l[1] );
 
     my $maxage=$cf->{"ClickPathMaxSessionAge"};
     my $age=$r->request_time-$l[0];
     if( ($maxage>0 and $age>$maxage) or $age<0 ) {
+      $r->subprocess_env( EXPIRED_SESSION=>$r->subprocess_env( 'SESSION' ) );
       $r->subprocess_env->unset( 'SESSION' );
       $r->subprocess_env->unset( 'CGI_SESSION' );
       $r->subprocess_env->unset( 'REMOTE_SESSION' );
       $r->subprocess_env->unset( 'REMOTE_SESSION_HOST' );
+      $r->subprocess_env->unset( 'ClickPathMachineName' );
+      $r->subprocess_env->unset( 'ClickPathMachineStore' );
       $newsession++;
       goto NEWSESSION;
     } else {
@@ -356,8 +410,9 @@ sub handler {
 	  $r->subprocess_env( REMOTE_SESSION=>$remote_session );
 	  $r->subprocess_env( REMOTE_SESSION_HOST=>$host );
 
-	  my %h=('*'=>'**', '!'=>'*!', '='=>'*.', "\n"=>'!');
-	  $remote_session=~s/([*!=\n])/$h{$1}/ge;
+	  my %h=('*'=>'**', '!'=>'*!', '='=>'*.', "\n"=>'!',
+		 '/'=>'*x', '#'=>'*y');
+	  $remote_session=~s^([*!=\n/#])^$h{$1}^ge;
 
 	  $ref=$el->[1].','.$remote_session;
 	} else {
@@ -371,14 +426,27 @@ sub handler {
 	$ref='';
       }
 
-      my $session_ip;
+      my $session_ip=undef;
       if( exists $cf->{"ClickPathMachine"} ) {
 	$session_ip=$cf->{"ClickPathMachine"};
       } else {
 	my $serverip=$r->connection->local_addr->ip_get;
-	$session_ip=MIME::Base64::encode_base64
-	  ( pack( 'C*', split /\./, $serverip, 4 ), '' );
-	$session_ip=~s/={0,2}$//;
+
+	if( exists $cf->{"ClickPathMachineTable"} and
+	    exists $cf->{"ClickPathMachineTable"}->{$serverip} ) {
+	  $session_ip=$cf->{"ClickPathMachineTable"}->{$serverip}->[0];
+	  $r->subprocess_env('ClickPathMachineName'=>
+			     $cf->{"ClickPathMachineTable"}->{$serverip}->[0]);
+	  $r->subprocess_env('ClickPathMachineStore'=>
+			     $cf->{"ClickPathMachineTable"}->{$serverip}->[1])
+	    if( length $cf->{"ClickPathMachineTable"}->{$serverip}->[1] );
+	} else {
+	  $r->server->log->error( "Cannot find myself ($serverip) in ClickPathMachineTable" )
+	    if( exists $cf->{"ClickPathMachineTable"} );
+	  $session_ip=MIME::Base64::encode_base64
+	    ( pack( 'C*', split /\./, $serverip, 4 ), '' );
+	  $session_ip=~s/={0,2}$//;
+	}
       }
       my $session=pack( 'NNnN',
 			$r->request_time, $$, $rcounter++,
@@ -410,7 +478,7 @@ sub OutputFilter {
   my $host;
   my $sprefix;
   my $context;
-  my ($re, $re1, $re2, $re3, $re4, $the_request);
+  my ($re0, $re1, $re2, $re3, $re4, $the_request);
 
 
   unless ($f->ctx) {
@@ -679,7 +747,7 @@ sub OutputFilter {
   $re2=$context->{re2};
   $re3=$context->{re3};
   $re4=$context->{re4};
-  $re=$context->{re};
+  $re0=$context->{re};
   $the_request=$context->{req};
 
   # now, filter the content
@@ -689,7 +757,7 @@ sub OutputFilter {
 
     # if our buffer ends in a split tag ('<strong' for example)
     # save processing the tag for later
-    if (($context->{extra}) = $buffer =~ m/$re/) {
+    if (($context->{extra}) = $buffer =~ m/$re0/) {
       $buffer = substr($buffer, 0, -length($context->{extra}));
     }
 
@@ -846,6 +914,28 @@ in case a friendly session was caught this variable contains it, see below.
 in case a friendly session was caught this variable contains the host it
 belongs to, see below.
 
+=item B<EXPIRED_SESSION>
+
+if a session has expired and a new one has been created the old session is
+stored here.
+
+=item B<INVALID_SESSION>
+
+when a C<ClickPathMachineTable> is used a check is accomplished to ensure the
+session was created by on of the machines of the cluster. If it was not
+a message is written to the C<ErrorLog>, a new one is created and the invalid
+session is written to this environment variable.
+
+=item B<ClickPathMachineName>
+
+when a C<ClickPathMachineTable> is used this variable contains the name of
+the machine where the session has been created.
+
+=item B<ClickPathMachineStore>
+
+when a C<ClickPathMachineTable> is used this variable contains the address of
+the session store in terms of C<Apache2::ClickPath::Store>.
+
 =back
 
 =head2 The Output Filter
@@ -918,6 +1008,18 @@ A name consists of letters, digits and underscores (_).
 
 The generated session identifier contains the name in a slightly scrambled
 form to slightly hide your infrastructure.
+
+=item B<ClickPathMachineTable>
+
+this is a container directive like C<< <Location> >> or C<< <Directory> >>.
+It defines a 3-column table specifying the layout of your WEB-server cluster.
+Each line consists of max. 3 fields. The 1st one is the IP address or name
+the server is listening on. Second comes an optional machine name in in terms
+of the C<ClickPathMachine> directive. If it is omitted each machine is
+assigned it's line number within the table as name. This means that each
+machine in a cluster must run with exactly the same table regarding the
+line order. The optional 3rd field specifies the address where the session
+store is accessible (see L<Apache2::ClickPath::Store> for more information.
 
 =item B<ClickPathUAExceptions>
 
@@ -1045,7 +1147,9 @@ identifier. This is why L<Apache2::ClickPath::Decode> exists.
 
 =head1 SEE ALSO
 
-L<Apache2::ClickPath::Decode(3)>
+L<Apache2::ClickPath::Store>
+L<Apache2::ClickPath::StoreClient>
+L<Apache2::ClickPath::Decode>
 L<http://perl.apache.org>,
 L<http://httpd.apache.org>
 

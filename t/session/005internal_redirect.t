@@ -17,7 +17,7 @@ mkdir "t/htdocs/bin";
 open F, ">t/htdocs/bin/x.pl" and print F <<"EOF";
 #!/usr/bin/perl
 
-print "Location: /TestSession__1session_generation?SESSION\n\n";
+print "Location: /TestSession__001session_generation?SESSION\n\n";
 EOF
 close F;
 chmod 0755, "t/htdocs/bin/x.pl";

@@ -11,12 +11,13 @@ use Class::Member qw{friendly_session
 		     session
 		     remote_session_host remote_session
 		     server_id
+		     server_name
 		     creation_time
 		     server_pid
 		     seq_number
 		     connection_id};
 
-our $VERSION='1.2';
+our $VERSION='1.5';
 
 sub new {
   my $class=shift;
@@ -86,10 +87,23 @@ sub parse {
 
   return unless( @l==2 );
 
+  $I->server_name=$l[0];
+
   if( defined $I->server_map ) {
     if( length $I->server_map ) {
-      warn "WARNING: ".__PACKAGE__.": server_map( FILENAME ) not implemented yet.\n";
-      $I->server_id=$l[0];
+      unless( ref( $I->server_map ) eq 'HASH' ) {
+	my $map=eval $I->server_map;
+	if( ref( $map ) eq 'HASH' ) {
+	  $I->server_map=$map;
+	} else {
+	  (undef, $I->server_map)=
+	    Apache2::ClickPath::_parse::MachineTable( $I->server_map );
+	}
+      }
+
+      $I->server_id=$I->server_map->{$l[0]}->[0]
+	if( ref( $I->server_map ) eq 'HASH' and
+	    exists $I->server_map->{$l[0]} );
     } else {
       $I->server_id=$l[0];
     }
@@ -97,10 +111,11 @@ sub parse {
     my $len4=do {use integer; (length( $l[0] )+3)/4;};
     $len4*=4;
     $I->server_id=
-      join( '.',
-	    unpack("C*",
-		   MIME::Base64::decode_base64($l[0].
-					       ('='x($len4-length( $l[0] ))))) );
+      join
+	( '.',
+	  unpack("C*",
+		 MIME::Base64::decode_base64($l[0].
+					     ('='x($len4-length( $l[0] ))))) );
   }
 
   my $len4=do {use integer; (length( $l[1] )+3)/4;};
@@ -223,12 +238,12 @@ a friendly session as the directive in your C<httpd.conf> does.
 
 if left undefined C<parse()> will interpret the server-id part
 of a session identifier as IP address. If set to an empty string it will
-not. In a future version of C<Apache2::ClickPath> I plan to provide
-directives to give a table of (IP adress, machine name) pairs in the
-C<httpd.conf>. Then all machines of a cluster can run with the same
-configuration files. Then the decoder will also be extented to map these
-names back and this attribute will be allowed to be assigned a non-empty
-string, too.
+not. If set to a non-empty string it will be interpreted the same way as
+C<Apache2::ClickPath> interprets a C<ClickPathMachineTable>. This table
+is then used to map a server name to a server_id (IP address).
+
+Also a HASH can be given instead of a string. Then this hash maps the
+server_name to a server_id.
 
 =item B<session>
 
@@ -240,6 +255,8 @@ called it contains the session identifier.
 =item B<remote_session_host>
 
 =item B<server_id>
+
+=item B<server_name>
 
 =item B<creation_time>
 

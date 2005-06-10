@@ -126,7 +126,7 @@ ok( t_cmp( $got, qr!<form action="/-S:\S+/tmp/\.\./index1\.html">3</form>! ),
 ok( t_cmp( $got, qr!<form action="http://x.y/index1.html">4</form>! ),
     "form 4" );
 
-my $session=GET_BODY( "/TestSession__1session_generation?CGI_SESSION" );
+my $session=GET_BODY( "/TestSession__001session_generation?CGI_SESSION" );
 chomp $session;
 $session=~s/^.*?=//;
 

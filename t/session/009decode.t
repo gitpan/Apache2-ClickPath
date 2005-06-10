@@ -1,12 +1,13 @@
 use strict;
 
-use Test::More tests=>27;
+use Test::More tests=>31;
 
 BEGIN {use_ok( 'Apache2::ClickPath::Decode' );}
 
 my $s1='PtVOR9:dxAredNNqtcus9NNNOdM';
 my $s2='6r56:dxAredNNqtcus9NNNOdM';
 my $s3='s9NNNd:dxCuJtNNbBHExdNNNNNMsMyq*.CF!vq*.InoJ';
+my $s4='O:dxCuJtNNbBHExdNNNNNMsMyq*.CF!vq*.InoJ';
 
 my $decoder=Apache2::ClickPath::Decode->new;
 
@@ -60,6 +61,27 @@ $decoder->parse( 'http://localhost/-S:'.$s3.'/bla' );
 ok $decoder->session eq $s3, 'session (s3 w/ friendly_session)';
 ok $decoder->remote_session eq "ld=25\nid=8ab9", 'remote_session (s3 w/ friendly_session)';
 ok $decoder->remote_session_host eq 'param.friendly.org', 'remote_session_host (s3 w/ friendly_session)';
+
+$decoder->server_map=<<'MACHINES';
+  localhost A /store
+  127.0.0.13 B http://klaus:32810/store
+MACHINES
+
+$decoder->parse( 'http://localhost/-S:'.$s4.'/bla' );
+ok $decoder->server_name eq 'B', 's4 server_name';
+ok $decoder->server_id eq '127.0.0.13', 's4 server_id';
+
+$decoder->server_map=<<'MACHINES';
+{B=>['127.0.0.12']}
+MACHINES
+
+$decoder->parse( 'http://localhost/-S:'.$s4.'/bla' );
+ok $decoder->server_id eq '127.0.0.12', 's4 server_id (dumped mach table)';
+
+$decoder->server_map=+{B=>['127.0.0.11']};
+
+$decoder->parse( 'http://localhost/-S:'.$s4.'/bla' );
+ok $decoder->server_id eq '127.0.0.11', 's4 server_id (HASH mach table)';
 
 # Local Variables: #
 # mode: cperl #

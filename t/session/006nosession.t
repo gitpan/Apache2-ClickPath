@@ -16,28 +16,28 @@ my $config   = Apache::Test::config();
 my $hostport = Apache::TestRequest::hostport($config) || '';
 t_debug("connecting to $hostport");
 
-ok t_cmp( GET_BODY( "/TestSession__1session_generation?SESSION" ),
+ok t_cmp( GET_BODY( "/TestSession__001session_generation?SESSION" ),
 	  qr/^SESSION=Google$/m,  ), "SESSION is Google";
 
-ok t_cmp( GET_BODY( "/TestSession__1session_generation?CGI_SESSION" ),
+ok t_cmp( GET_BODY( "/TestSession__001session_generation?CGI_SESSION" ),
 	  qr/^CGI_SESSION=$/m ), "CGI_SESSION is empty";
 
-ok t_cmp( GET_BODY( "/TestSession__1session_generation?SESSION_AGE" ),
+ok t_cmp( GET_BODY( "/TestSession__001session_generation?SESSION_AGE" ),
 	  qr/^SESSION_AGE=0$/m ), "SESSION_AGE=0";
 
-my $got=GET_HEAD( "/TestSession__2output_headers?type=text/plain;rc=302;loc=/index.html", redirect_ok=>0 );
+my $got=GET_HEAD( "/TestSession__002output_headers?type=text/plain;rc=302;loc=/index.html", redirect_ok=>0 );
 ok( t_cmp( $got, qr!^#?Location: /index\.html!m ),
     "Location on REDIRECT" );
 
-$got=GET_HEAD( "/TestSession__2output_headers/bla/blub?type=text/plain;rc=302;loc=../index.html", redirect_ok=>0 );
+$got=GET_HEAD( "/TestSession__002output_headers/bla/blub?type=text/plain;rc=302;loc=../index.html", redirect_ok=>0 );
 ok( t_cmp( $got, qr!^#?Location: \.\./index\.html!m ),
     "Location on REDIRECT and relative uri" );
 
-$got=GET_HEAD( "/TestSession__2output_headers?type=text/plain;refresh=10%3B+URL%3D/index.html", redirect_ok=>0 );
+$got=GET_HEAD( "/TestSession__002output_headers?type=text/plain;refresh=10%3B+URL%3D/index.html", redirect_ok=>0 );
 ok( t_cmp( $got, qr!^#?Refresh: 10; URL=/index\.html!m ),
     "Refresh" );
 
-$got=GET_HEAD( "/TestSession__2output_headers/bla/blub?type=text/plain;refresh=10%3B+URL%3D../index.html", redirect_ok=>0 );
+$got=GET_HEAD( "/TestSession__002output_headers/bla/blub?type=text/plain;refresh=10%3B+URL%3D../index.html", redirect_ok=>0 );
 ok( t_cmp( $got, qr!^#?Refresh: 10; URL=\.\./index\.html!m ),
     "Refresh and relative uri" );
 

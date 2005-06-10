@@ -9,7 +9,7 @@ Requires:     perl = %{perl_version}
 Requires:     p_mod_perl >= 1.999022
 Autoreqprov:  on
 Summary:      Apache2::ClickPath
-Version:      1.3
+Version:      1.5
 Release:      1
 Source:       Apache2-ClickPath-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
@@ -38,6 +38,8 @@ make DESTDIR=$RPM_BUILD_ROOT install_vendor
 rm -f $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::decode-session.3pm
 %{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath.3pm || true
 %{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath::Decode.3pm || true
+%{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath::Store.3pm || true
+%{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath::StoreClient.3pm || true
 %perl_process_packlist
 
 %clean
@@ -49,9 +51,7 @@ rm -f $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::decode-session.3pm
 %{perl_vendorarch}/auto/Apache2
 %doc %{_mandir}/man3/Apache2::ClickPath.3pm.gz
 %doc %{_mandir}/man3/Apache2::ClickPath::Decode.3pm.gz
+%doc %{_mandir}/man3/Apache2::ClickPath::Store.3pm.gz
+%doc %{_mandir}/man3/Apache2::ClickPath::StoreClient.3pm.gz
 /var/adm/perl-modules/perl-Apache2-ClickPath
 %doc MANIFEST README
-
-%changelog -n perl-Apache2-ClickPath
-* Wed Jan 12 2005 - torsten.foertsch@gmx.net
-- first package, v1.1

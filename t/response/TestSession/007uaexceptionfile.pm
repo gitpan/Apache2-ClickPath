@@ -1,4 +1,4 @@
-package TestSession::7uaexceptionfile;
+package TestSession::007uaexceptionfile;
 
 use strict;
 use Apache2::RequestRec ();
@@ -23,4 +23,4 @@ sub handler {
 __DATA__
 
 SetHandler modperl
-PerlResponseHandler TestSession::7uaexceptionfile
+PerlResponseHandler TestSession::007uaexceptionfile

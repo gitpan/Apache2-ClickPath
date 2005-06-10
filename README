@@ -91,6 +91,26 @@ DESCRIPTION
         in case a friendly session was caught this variable contains the
         host it belongs to, see below.
 
+    EXPIRED_SESSION
+        if a session has expired and a new one has been created the old
+        session is stored here.
+
+    INVALID_SESSION
+        when a "ClickPathMachineTable" is used a check is accomplished to
+        ensure the session was created by on of the machines of the cluster.
+        If it was not a message is written to the "ErrorLog", a new one is
+        created and the invalid session is written to this environment
+        variable.
+
+    ClickPathMachineName
+        when a "ClickPathMachineTable" is used this variable contains the
+        name of the machine where the session has been created.
+
+    ClickPathMachineStore
+        when a "ClickPathMachineTable" is used this variable contains the
+        address of the session store in terms of
+        "Apache2::ClickPath::Store".
+
   The Output Filter
     The output filter is entirely skipped if the translation handler had not
     set the "CGI_SESSION" environment variable.
@@ -146,6 +166,18 @@ DESCRIPTION
 
         The generated session identifier contains the name in a slightly
         scrambled form to slightly hide your infrastructure.
+
+    ClickPathMachineTable
+        this is a container directive like "<Location>" or "<Directory>". It
+        defines a 3-column table specifying the layout of your WEB-server
+        cluster. Each line consists of max. 3 fields. The 1st one is the IP
+        address or name the server is listening on. Second comes an optional
+        machine name in in terms of the "ClickPathMachine" directive. If it
+        is omitted each machine is assigned it's line number within the
+        table as name. This means that each machine in a cluster must run
+        with exactly the same table regarding the line order. The optional
+        3rd field specifies the address where the session store is
+        accessible (see Apache2::ClickPath::Store for more information.
 
     ClickPathUAExceptions
         this is a container directive like "<Location>" or "<Directory>".
@@ -265,7 +297,8 @@ DESCRIPTION
     identifier. This is why Apache2::ClickPath::Decode exists.
 
 SEE ALSO
-    Apache2::ClickPath::Decode(3) <http://perl.apache.org>,
+    Apache2::ClickPath::Store Apache2::ClickPath::StoreClient
+    Apache2::ClickPath::Decode <http://perl.apache.org>,
     <http://httpd.apache.org>
 
 AUTHOR
