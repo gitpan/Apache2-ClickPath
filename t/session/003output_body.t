@@ -5,7 +5,7 @@ use Test::More;
 use Apache::TestUtil;
 use Apache::TestRequest 'GET_BODY';
 
-plan tests => 48;
+plan tests => 49;
 
 Apache::TestRequest::module('default');
 
@@ -25,6 +25,7 @@ open F, ">t/htdocs/tmp/x.html" and print F <<"EOF";
     <meta content="10; URL=http://$hostport/index4.html" http-equiv="refresh">
     <meta content="10; URL=../index5.html" http-equiv="refresh">
     <meta content="10; URL=http://x.y/index5.html" http-equiv="refresh">
+    <meta content="10; URL=http://$hostport/-S:s9NNNd:d3\@zidNNZkcH79NNNNNM/index7.html" http-equiv="refresh">
   </head>
 
   <body>
@@ -92,6 +93,8 @@ ok( t_cmp( $got, qr!<meta content="10; URL=/-S:\S+/tmp/\.\./index5\.html" http-e
     "meta 5" );
 ok( t_cmp( $got, qr!<meta content="10; URL=http://x\.y/index5\.html" http-equiv="refresh">! ),
     "meta 6" );
+ok( t_cmp( $got, qr!<meta content="10; URL=http://\Q$hostport\E/-S:\S+/index7\.html" http-equiv="refresh">! ),
+    "meta 7" );
 
 ok( t_cmp( $got, qr!<a href="/-S:\S+/index1\.html">1</a>! ),
     "a 1" );

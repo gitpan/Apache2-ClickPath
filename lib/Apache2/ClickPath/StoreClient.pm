@@ -9,7 +9,7 @@ use LWP::UserAgent;
 use LWP::ConnCache;
 use Class::Member qw{session store store_is_local ua lasterror _r};
 
-our $VERSION = '1.6';
+our $VERSION = '1.7';
 
 my $MOD_PERL;
 

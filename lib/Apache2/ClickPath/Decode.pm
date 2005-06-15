@@ -17,7 +17,7 @@ use Class::Member qw{friendly_session
 		     seq_number
 		     connection_id};
 
-our $VERSION='1.6';
+our $VERSION='1.7';
 
 sub new {
   my $class=shift;

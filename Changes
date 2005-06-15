@@ -1,4 +1,13 @@
 Revision history for Perl extension Apache::ClickPath
+1.7   Sun Jun 12 18:34:39 CEST 2005
+	* Torsten Foertsch <torsten.foertsch@gmx.net>
+	- Bugfix: when a CGI script was sending a Location or Refresh header
+	  with a session included the session prefix was sent twice. Now only
+	  our session prefix is sent.
+
+1.6   Fri Jun 10 20:45:20 CEST 2005
+	* Torsten Foertsch <torsten.foertsch@gmx.net>
+	- "local store" notion
 
 1.5   Tue May 31 21:21:13 CEST 2005
 	* Torsten Foertsch <torsten.foertsch@gmx.net>

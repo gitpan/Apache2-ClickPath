@@ -24,7 +24,7 @@ use MIME::Base64 ();
 
 use Apache2::ClickPath::_parse ();
 
-our $VERSION = '1.6';
+our $VERSION = '1.7';
 our $rcounter=int rand 0x10000;
 
 my @directives=
@@ -516,7 +516,7 @@ sub OutputFilter {
 	#print STDERR "the_request(2)=$the_request\n";
       }
 
-      my $re=qr,^(https?://\Q$host\E)?(?!\w+:)(.),i;
+      my $re=qr,^(https?://\Q$host\E)?(?!\w+:)(?:/\Q$sprefix\E[^/]+)*(.),i;
       $r->headers_out->{Location}=~s!$re!$2 eq '/'
                                          ? $1.$sess.$2
                                          : $1.$sess.$the_request.$2
@@ -528,7 +528,7 @@ sub OutputFilter {
                                             !e
 	if( exists $r->err_headers_out->{Location} );
 
-      $re=qr,^(\s*\d+\s*;\s*url\s*=\s*(?:https?://\Q$host\E)?)(?!\w+:)(.),i;
+      $re=qr,^(\s*\d+\s*;\s*url\s*=\s*(?:https?://\Q$host\E)?)(?!\w+:)(?:/\Q$sprefix\E[^/]+)*(.),i;
       $r->headers_out->{Refresh}=~s!$re!$2 eq '/'
                                         ? $1.$sess.$2
                                         : $1.$sess.$the_request.$2
@@ -542,13 +542,13 @@ sub OutputFilter {
     } else {
       $the_request="";
 
-      my $re=qr!^(https?://\Q$host\E)?/!i;
+      my $re=qr!^(https?://\Q$host\E)?(?:/\Q$sprefix\E[^/]+)*/!i;
       $r->headers_out->{Location}=~s!$re!$1$sess/!
 	if( exists $r->headers_out->{Location} );
       $r->err_headers_out->{Location}=~s!$re!$1$sess/!
 	if( exists $r->err_headers_out->{Location} );
 
-      $re=qr!^(\s*\d+\s*;\s*url\s*=\s*(?:https?://\Q$host\E)?)/!i;
+      $re=qr!^(\s*\d+\s*;\s*url\s*=\s*(?:https?://\Q$host\E)?)(?:/\Q$sprefix\E[^/]+)*/!i;
       $r->headers_out->{Refresh}=~s!$re!$1$sess/!
 	if( exists $r->headers_out->{Refresh} );
       $r->err_headers_out->{Refresh}=~s!$re!$1$sess/!

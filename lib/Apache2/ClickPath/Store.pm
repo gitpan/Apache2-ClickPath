@@ -30,7 +30,7 @@ use Cwd ();
 use Perl::AtEndOfScope;
 use Fcntl qw/:flock/;
 
-our $VERSION = '1.6';
+our $VERSION = '1.7';
 
 our $cleanupdefault=60;
 
