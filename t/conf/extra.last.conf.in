@@ -194,3 +194,39 @@ localhost
 127.0.0.13
 </ClickPathMachineTable>
 </VirtualHost>
+
+<VirtualHost Secret>
+PerlTransHandler Apache2::ClickPath
+ClickPathSessionPrefix "-S:"
+ClickPathMaxSessionAge 5
+ClickPathSecret data:,So%20long%20and%20thanks%20for%20all%20the%20fish
+PerlOutputFilterHandler Apache2::ClickPath::OutputFilter
+<Directory "@ServerRoot@">
+Options Indexes Includes
+</Directory>
+<Directory "@DocumentRoot@/bin">
+Options Indexes Includes ExecCGI
+SetHandler cgi-script
+</Directory>
+LogFormat "%h %l %u %t \"%m %U%q %H\" %>s %b \"%{Referer}i\" \"%{User-agent}i\" \"%{SESSION}e\""
+
+<ClickPathMachineTable>
+localhost A /store
+127.0.0.13 B http://klaus:32810/store
+</ClickPathMachineTable>
+
+ClickPathStoreDirectory "store"
+ClickPathStorePath "/store"
+ClickPathStoreTimeout 2
+ClickPathStoreCleanupInterval 1
+
+KeepAlive On
+KeepAliveTimeout 30
+
+<ClickPathFriendlySessions>
+  param.friendly.org   param(ld) param ( id )   f
+  uri.friendly.org     uri(1) uri ( 3 )         u
+  mixed.friendly.org   param(ld) uri ( 3 )      m
+</ClickPathFriendlySessions>
+</VirtualHost>
+

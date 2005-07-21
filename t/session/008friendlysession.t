@@ -5,7 +5,7 @@ use Test::More;
 use Apache::TestUtil;
 use Apache::TestRequest qw'GET_BODY GET_HEAD';
 
-plan tests => 19;
+plan tests => 27;
 
 Apache::TestRequest::module('FriendlySession');
 
@@ -163,6 +163,82 @@ $got=GET_BODY( "/TestSession__001session_generation?REMOTE_SESSION",
 ok t_cmp( $got, <<'EOT', 'REMOTE_SESSION original state again' );
 REMOTE_SESSION=ld=25
 id=8ab9
+EOT
+
+Apache::TestRequest::module('Secret');
+
+$config   = Apache::Test::config();
+$hostport = Apache::TestRequest::hostport($config) || '';
+t_debug("connecting to $hostport");
+
+$cgisession=GET_BODY( "/TestSession__001session_generation?CGI_SESSION" );
+chomp( $cgisession );
+$cgisession=~s/^CGI_SESSION=//;
+
+$normal_cgisession_len=length( $cgisession );
+
+$got=GET_BODY( "/TestSession__001session_generation?CGI_SESSION",
+		  referer=>'https://param.friendly.org/cgi-bin/blah.pl?a=b;id=8a#b/9&c=;d;ld=25&x=33' );
+chomp( $got );
+$got=~s/^CGI_SESSION=//;
+
+t_debug( "CGI_SESSION=$got" );
+
+ok t_cmp( $got, qr%^/-S:[^/#]+$%, 'no / nor # (Secret)' );
+
+t_debug( "testing: session string length (param) (Secret)" );
+t_debug( "expected: more than ".$normal_cgisession_len );
+t_debug( "received: ".length($got) );
+ok length($got)>$normal_cgisession_len, 'session string length (param) (Secret)';
+
+$got=GET_BODY( "/TestSession__001session_generation?CGI_SESSION",
+	       referer=>'https://uri.friendly.org/mach/blah/sess/cgi-bin/blah.pl' );
+chomp( $got );
+$got=~s/^CGI_SESSION=//;
+
+t_debug( "testing: session string length (uri) (Secret)" );
+t_debug( "expected: more than ".$normal_cgisession_len );
+t_debug( "received: ".length($got) );
+ok length($got)>$normal_cgisession_len, 'session string length (uri) (Secret)';
+
+$got=GET_BODY( "/TestSession__001session_generation?CGI_SESSION",
+	       referer=>'https://mixed.friendly.org/mach/blah/sess/cgi-bin/blah.pl?a=b;ld=2;x' );
+chomp( $got );
+$got=~s/^CGI_SESSION=//;
+
+t_debug( "testing: session string length (mixed) (Secret)" );
+t_debug( "expected: more than ".$normal_cgisession_len );
+t_debug( "received: ".length($got) );
+ok length($got)>$normal_cgisession_len, 'session string length (mixed) (Secret)';
+
+$got=GET_BODY( "/TestSession__001session_generation?REMOTE_SESSION",
+	       referer=>'https://param.friendly.org/cgi-bin/blah.pl?a=b;id=8ab9&c=;d;ld=25&x=33' );
+ok t_cmp( $got, <<'EOT', 'REMOTE_SESSION (Secret)' );
+REMOTE_SESSION=ld=25
+id=8ab9
+EOT
+
+$got=GET_BODY( "/TestSession__001session_generation?REMOTE_SESSION_HOST",
+	       referer=>'https://param.friendly.org/cgi-bin/blah.pl?a=b&ld=21;id=8fd9&c=;d;&x=33' );
+ok t_cmp( $got, <<'EOT', 'REMOTE_SESSION_HOST (Secret)' );
+REMOTE_SESSION_HOST=param.friendly.org
+EOT
+
+$cgisession=GET_BODY( "/TestSession__001session_generation?CGI_SESSION",
+		      referer=>'https://param.friendly.org/cgi-bin/blah.pl?a=b;id=8a/b#9&c=;d;ld=25&x=33' );
+chomp( $cgisession );
+$cgisession=~s/^CGI_SESSION=//;
+t_debug( "Using session: $cgisession" );
+
+$got=GET_BODY( "$cgisession/TestSession__001session_generation?REMOTE_SESSION" );
+ok t_cmp( $got, <<'EOT', 'REMOTE_SESSION with session part (Secret)' );
+REMOTE_SESSION=ld=25
+id=8a/b#9
+EOT
+
+$got=GET_BODY( "$cgisession/TestSession__001session_generation?REMOTE_SESSION_HOST" );
+ok t_cmp( $got, <<'EOT', 'REMOTE_SESSION_HOST with session part (Secret)' );
+REMOTE_SESSION_HOST=param.friendly.org
 EOT
 
 # Local Variables: #

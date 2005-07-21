@@ -21,10 +21,14 @@ use Apache2::Const -compile => qw(DECLINED OK
 				  TAKE1 RAW_ARGS NO_ARGS);
 
 use MIME::Base64 ();
+use Crypt::CBC ();
+use Crypt::Blowfish ();
+use Digest::MD5 ();
+use Digest::CRC ();
 
 use Apache2::ClickPath::_parse ();
 
-our $VERSION = '1.7';
+our $VERSION = '1.8';
 our $rcounter=int rand 0x10000;
 
 my @directives=
@@ -118,11 +122,26 @@ ip_ext2|name_ext2 [name2 [ip_int1|name_int1]]
     args_how     => Apache2::Const::NO_ARGS,
     errmsg       => '</ClickPathMachineTable> without <ClickPathMachineTable>',
    },
+   {
+    name         => 'ClickPathSecret',
+    func         => __PACKAGE__ . '::ClickPathSecret',
+    req_override => Apache2::Const::RSRC_CONF,
+    args_how     => Apache2::Const::RAW_ARGS,
+    errmsg       => 'ClickPathSecret string',
+   },
+   {
+    name         => 'ClickPathSecretIV',
+    func         => __PACKAGE__ . '::ClickPathSecretIV',
+    req_override => Apache2::Const::RSRC_CONF,
+    args_how     => Apache2::Const::RAW_ARGS,
+    errmsg       => 'ClickPathSecretIV string',
+   },
   );
 Apache2::Module::add(__PACKAGE__, \@directives);
 
 sub ClickPathSessionPrefix {
   my($I, $parms, $arg)=@_;
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   $I->{"ClickPathSessionPrefix"}=$arg;
 }
 
@@ -130,17 +149,20 @@ sub ClickPathMaxSessionAge {
   my($I, $parms, $arg)=@_;
   die "ERROR: Argument to ClickPathMaxSessionAge must be a number\n"
     unless( $arg=~/^\d+$/ );
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   $I->{"ClickPathMaxSessionAge"}=$arg;
 }
 
 sub ClickPathUAExceptionsFile {
   my($I, $parms, $arg)=@_;
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   $I->{"ClickPathUAExceptionsFile"}=$arg;
 }
 
 sub ClickPathUAExceptions {
   my($I, $parms, @args)=@_;
 
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   $I->{"ClickPathUAExceptions"}
     =Apache2::ClickPath::_parse::UAExceptions( $parms->directive->as_string );
 }
@@ -152,12 +174,14 @@ sub ClickPathUAExceptionsEND {
 
 sub ClickPathFriendlySessionsFile {
   my($I, $parms, $arg)=@_;
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   $I->{"ClickPathFriendlySessionsFile"}=$arg;
 }
 
 sub ClickPathFriendlySessions {
   my($I, $parms, @args)=@_;
 
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   @{$I}{"ClickPathFriendlySessionsTable",
 	"ClickPathFriendlySessionsReverse"}
     =Apache2::ClickPath::_parse::FriendlySessions( $parms->directive->as_string );
@@ -173,12 +197,14 @@ sub ClickPathMachine {
   die "ClickPathMachine [name] -- name consist of letters, digits or _\n"
     unless( $arg=~/^\w*$/ );
 
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   $I->{"ClickPathMachine"}=$arg;
 }
 
 sub ClickPathMachineTable {
   my($I, $parms, @args)=@_;
 
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
   @{$I}{"ClickPathMachineTable", "ClickPathMachineReverse"}
     =Apache2::ClickPath::_parse::MachineTable( $parms->directive->as_string );
 }
@@ -186,6 +212,46 @@ sub ClickPathMachineTable {
 sub ClickPathMachineTableEND {
   my($I, $parms, $arg)=@_;
   die "ERROR: </ClickPathMachineTable> without <ClickPathMachineTable>\n";
+}
+
+sub postconfig {
+  my($conf_pool, $log_pool, $temp_pool, $s) = @_;
+
+  for( $s=Apache2::ServerUtil->server; $s; $s=$s->next ) {
+    my $cfg=Apache2::Module::get_config( __PACKAGE__, $s );
+    if( $cfg ) {
+      if( exists $cfg->{ClickPathSecret} ) {
+	$cfg->{ClickPathSecretIV}="abcd1234"
+	  unless( length $cfg->{ClickPathSecretIV} );
+      }
+    }
+  }
+
+  return Apache2::Const::OK;
+}
+
+sub setPostConfigHandler {
+  my $h=Apache2::ServerUtil->server->get_handlers('PerlPostConfigHandler')||[];
+  unless( grep $_==\&postconfig, @{$h} ) {
+    Apache2::ServerUtil->server->push_handlers
+	('PerlPostConfigHandler'=>\&postconfig);
+  }
+}
+
+sub ClickPathSecret {
+  my($I, $parms, $arg)=@_;
+
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
+  $I->{"ClickPathSecret"}=Apache2::ClickPath::_parse::Secret( $arg );
+  setPostConfigHandler;
+}
+
+sub ClickPathSecretIV {
+  my($I, $parms, $arg)=@_;
+
+  $I=Apache2::Module::get_config( __PACKAGE__, $parms->server );
+  $I->{"ClickPathSecretIV"}=substr( Digest::MD5::md5( $arg ), 0, 8 );
+  setPostConfigHandler;
 }
 
 sub _get_ua_exc {
@@ -252,8 +318,7 @@ sub _get_friendly_session {
 sub handler {
   my $r=shift;
 
-  my $cf=Apache2::Module::get_config(__PACKAGE__,
-				    $r->server, $r->per_dir_config);
+  my $cf=Apache2::Module::get_config(__PACKAGE__, $r->server);
   my $tag=$cf->{"ClickPathSessionPrefix"}
     or return Apache2::Const::DECLINED;
   $r->pnotes( __PACKAGE__.'::tag'=>$tag );
@@ -335,7 +400,7 @@ sub handler {
 			   $cf->{"ClickPathMachineReverse"}->{$l[0]}->[1])
 	  if( length $cf->{"ClickPathMachineReverse"}->{$l[0]}->[1] );
       } else {
-	$r->log->error( "Caught invalid session: Unknown Machine name '$l[0]'" );
+	$r->log->notice( "Caught invalid session: Unknown Machine name '$l[0]'" );
 	$r->subprocess_env( INVALID_SESSION=>$r->subprocess_env( 'SESSION' ) );
 	$r->subprocess_env->unset( 'SESSION' );
 	$r->subprocess_env->unset( 'CGI_SESSION' );
@@ -345,12 +410,37 @@ sub handler {
 	goto NEWSESSION;
       }
     }
-    @l=unpack "NNnNn", MIME::Base64::decode_base64( $l[1] );
+
+    my $len4=do {use integer; (length( $l[1] )+3)/4;};
+    $len4*=4;
+    $l[1]=MIME::Base64::decode_base64( $l[1].('='x($len4-length( $l[1] ))) );
+
+    if( exists $cf->{ClickPathSecret} ) {
+      my $crypt=Crypt::CBC->new( {key=>$cf->{ClickPathSecret},
+				  cipher=>'Blowfish',
+				  iv=>$cf->{ClickPathSecretIV},
+				  regenerate_key=>0,
+				  prepend_iv=>0} );
+      $l[1]=$crypt->decrypt( $l[1] );
+    }
+
+    my $crc;
+    if( length( $l[1] ) ) {
+      $crc=Digest::CRC::crc8( substr( $l[1], 1 ) );
+    } else {
+      $crc=-1;			# invalid value
+    }
+
+    @l=unpack "CNNnN", $l[1];
 
     my $maxage=$cf->{"ClickPathMaxSessionAge"};
-    my $age=$r->request_time-$l[0];
-    if( ($maxage>0 and $age>$maxage) or $age<0 ) {
-      $r->subprocess_env( EXPIRED_SESSION=>$r->subprocess_env( 'SESSION' ) );
+    my $age=$r->request_time-$l[1];
+    if( $crc!=$l[0] or ($maxage>0 and $age>$maxage) or $age<0 ) {
+      if( $crc!=$l[0] ) {
+	$r->log->notice( "Caught invalid session: CRC checksum failed" );
+      } else {
+	$r->subprocess_env( EXPIRED_SESSION=>$r->subprocess_env( 'SESSION' ) );
+      }
       $r->subprocess_env->unset( 'SESSION' );
       $r->subprocess_env->unset( 'CGI_SESSION' );
       $r->subprocess_env->unset( 'REMOTE_SESSION' );
@@ -360,8 +450,8 @@ sub handler {
       $newsession++;
       goto NEWSESSION;
     } else {
-      $r->subprocess_env( SESSION_START=>$l[0] );
-      $r->subprocess_env( SESSION_AGE=>$r->request_time-$l[0] );
+      $r->subprocess_env( SESSION_START=>$l[1] );
+      $r->subprocess_env( SESSION_AGE=>$r->request_time-$l[1] );
     }
     $newsession=0;
   } else {
@@ -452,6 +542,17 @@ sub handler {
 			$r->request_time, $$, $rcounter++,
 			$r->connection->id );
       $rcounter%=2**16;
+
+      $session=pack( 'C', Digest::CRC::crc8( $session ) ).$session;
+
+      if( exists $cf->{ClickPathSecret} ) {
+	my $crypt=Crypt::CBC->new( {key=>$cf->{ClickPathSecret},
+				    cipher=>'Blowfish',
+				    iv=>$cf->{ClickPathSecretIV},
+				    regenerate_key=>0,
+				    prepend_iv=>0} );
+	$session=$crypt->encrypt( $session );
+      }
       $session=MIME::Base64::encode_base64( $session, '' );
       $session=~s/={0,2}$//;
 
@@ -863,6 +964,12 @@ is C</-S:s9NNNd:doBAYNNNiaNQOtNNNNNM/index.html> then assuming
 C<ClickPathSessionPrefix> is set to C<-S:> the session identifier would be
 C<s9NNNd:doBAYNNNiaNQOtNNNNNM>.
 
+Starting with version 1.8 a checksum is included in the session ID. Further,
+some parts of the information contained in the session including the checksum
+can be encrypted. This both makes a valid session ID hard to guess. If an
+invalid session ID is detected an error message is printed to the ErrorLog.
+So, a log watching agent can be set up to catch frequent abuses.
+
 If no session identifier is found a new one is created.
 
 Then the session prefix and identifier are stripped from the current URI.
@@ -1103,6 +1210,107 @@ this directive takes a filename as argument. The file's syntax and semantic
 are the same as for C<ClickPathFriendlySessions>. The file is reread every time
 is has been changed avoiding server restarts after configuration changes at
 the prize of memory consumption.
+
+=item B<ClickPathSecret>
+
+=item B<ClickPathSecretIV>
+
+if you want to run something like a shop with our session identifiers they
+must be unguessable. That means knowing a valid session ID it must be
+difficult to guess another one. With these directives a significant part
+of the session ID is encrypted with Blowfish in the cipher block chaining
+mode thus making the session ID unguessable. C<ClickPathSecret> specifies
+the key, C<ClickPathSecretIV> the initialization vector.
+
+C<ClickPathSecretIV> is a simple string of arbitrary length. The first 8
+bytes of its MD5 digest are used as initialization vector. If omitted the
+string C<abcd1234> is the IV.
+
+C<ClickPathSecret> is given as C<http:>, C<https:>, C<file:> or C<data:> URL.
+Thus the secret can be stored directly as data-URL in the httpd.conf or in a
+separate file on the local disk or on a possibly secured server. To enable
+all modes of accessing the WEB the http(s)-URL syntax is a bit extented.
+Maybe you have already used C<http://user:password@server.tld/...>. Many
+browsers allow this syntax to specify a username and password for HTTP
+authentication. But how about proxies, SSL-authentication etc? Well, add
+another colon (:) after the password and append a semicolon (;) delimited
+list of C<key=value> pairs. The special characters (@:;\) can be quoted
+with a backslash (\). In fact, all characters can be quoted. Thus, C<\a> and
+C<a> produce the same string C<a>.
+
+The following keys are defined:
+
+=over 2
+
+=item B<https_proxy>
+
+=item B<https_proxy_username>
+
+=item B<https_proxy_password>
+
+=item B<https_version>
+
+=item B<https_cert_file>
+
+=item B<https_key_file>
+
+=item B<https_ca_file>
+
+=item B<https_ca_dir>
+
+=item B<https_pkcs12_file>
+
+=item B<https_pkcs12_password>
+
+their meaning is defined in L<Crypt::SSLeay>.
+
+=item B<http_proxy>
+
+=item B<http_proxy_username>
+
+=item B<http_proxy_password>
+
+these are passed to L<LWP::UserAgent>.
+
+Remember a HTTP-proxy is accessed with the GET or POST, ... methods whereas
+a HTTPS-proxy is accessed with CONNECT. Don't mix them, see L<Crypt::SSLeay>.
+
+=back
+
+B<Examples>
+
+ ClickPathSecret https://john:a\@b\;c\::https_ca_file=/my/ca.pem@secrethost.tld/bin/secret.pl?host=me
+
+fetches the secret from C<https://secrethost.tdl/bin/secret.pl?host=me>
+using C<john> as username and C<a@b;c:> as password. The server certificate
+of secrethost.tld is verified against the CA certificate found in
+C</my/ca.pem>.
+
+ ClickPathSecret https://::https_pkcs12_file=/my/john.p12;https_pkcs12_password=a\@b\;c\:;https_ca_file=/my/ca.pem@secrethost.tld/bin/secret.pl?host=me
+
+fetches the secret again from C<https://secrethost.tdl/bin/secret.pl?host=me>
+using C</my/john.p12> as client certificate with C<a@b;c:> as password.
+The server certificate of secrethost.tld is again verified against the CA
+certificate found in C</my/ca.pem>.
+
+ ClickPathSecret data:,password:very%20secret%20password
+
+here a data-URL is used that produces the content
+C<password:very secret password>.
+
+The URL's content is fetched by L<LWP::UserAgent> once at server startup.
+
+Its content defines the secret either in binary form or as string of
+hexadecimal characters or as a password. If it starts with C<binary:> the
+rest of the content is taken as is as the key. If it starts with C<hex:>
+C<pack( 'H*', $arg )> is used to convert it to binary. If it starts with
+C<password:> or with neither of them the MD5 digest of the rest of the
+content is used as secret.
+
+The Blowfish algorithm allows up to 56 bytes as secret. In hex and binary
+mode the starting 56 bytes are used. You can specify more bytes but they
+won't be regarded. In password mode the MD5 algorithm produces
+16 bytes long secret.
 
 =back
 

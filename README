@@ -46,6 +46,13 @@ DESCRIPTION
     "ClickPathSessionPrefix" is set to "-S:" the session identifier would be
     "s9NNNd:doBAYNNNiaNQOtNNNNNM".
 
+    Starting with version 1.8 a checksum is included in the session ID.
+    Further, some parts of the information contained in the session
+    including the checksum can be encrypted. This both makes a valid session
+    ID hard to guess. If an invalid session ID is detected an error message
+    is printed to the ErrorLog. So, a log watching agent can be set up to
+    catch frequent abuses.
+
     If no session identifier is found a new one is created.
 
     Then the session prefix and identifier are stripped from the current
@@ -260,6 +267,94 @@ DESCRIPTION
         semantic are the same as for "ClickPathFriendlySessions". The file
         is reread every time is has been changed avoiding server restarts
         after configuration changes at the prize of memory consumption.
+
+    ClickPathSecret
+    ClickPathSecretIV
+        if you want to run something like a shop with our session
+        identifiers they must be unguessable. That means knowing a valid
+        session ID it must be difficult to guess another one. With these
+        directives a significant part of the session ID is encrypted with
+        Blowfish in the cipher block chaining mode thus making the session
+        ID unguessable. "ClickPathSecret" specifies the key,
+        "ClickPathSecretIV" the initialization vector.
+
+        "ClickPathSecretIV" is a simple string of arbitrary length. The
+        first 8 bytes of its MD5 digest are used as initialization vector.
+        If omitted the string "abcd1234" is the IV.
+
+        "ClickPathSecret" is given as "http:", "https:", "file:" or "data:"
+        URL. Thus the secret can be stored directly as data-URL in the
+        httpd.conf or in a separate file on the local disk or on a possibly
+        secured server. To enable all modes of accessing the WEB the
+        http(s)-URL syntax is a bit extented. Maybe you have already used
+        "http://user:password@server.tld/...". Many browsers allow this
+        syntax to specify a username and password for HTTP authentication.
+        But how about proxies, SSL-authentication etc? Well, add another
+        colon (:) after the password and append a semicolon (;) delimited
+        list of "key=value" pairs. The special characters (@:;\) can be
+        quoted with a backslash (\). In fact, all characters can be quoted.
+        Thus, "\a" and "a" produce the same string "a".
+
+        The following keys are defined:
+
+        https_proxy
+        https_proxy_username
+        https_proxy_password
+        https_version
+        https_cert_file
+        https_key_file
+        https_ca_file
+        https_ca_dir
+        https_pkcs12_file
+        https_pkcs12_password
+          their meaning is defined in Crypt::SSLeay.
+
+        http_proxy
+        http_proxy_username
+        http_proxy_password
+          these are passed to LWP::UserAgent.
+
+          Remember a HTTP-proxy is accessed with the GET or POST, ...
+          methods whereas a HTTPS-proxy is accessed with CONNECT. Don't mix
+          them, see Crypt::SSLeay.
+
+        Examples
+
+         ClickPathSecret https://john:a\@b\;c\::https_ca_file=/my/ca.pem@secrethost.tld/bin/secret.pl?host=me
+
+        fetches the secret from
+        "https://secrethost.tdl/bin/secret.pl?host=me" using "john" as
+        username and "a@b;c:" as password. The server certificate of
+        secrethost.tld is verified against the CA certificate found in
+        "/my/ca.pem".
+
+         ClickPathSecret https://::https_pkcs12_file=/my/john.p12;https_pkcs12_password=a\@b\;c\:;https_ca_file=/my/ca.pem@secrethost.tld/bin/secret.pl?host=me
+
+        fetches the secret again from
+        "https://secrethost.tdl/bin/secret.pl?host=me" using "/my/john.p12"
+        as client certificate with "a@b;c:" as password. The server
+        certificate of secrethost.tld is again verified against the CA
+        certificate found in "/my/ca.pem".
+
+         ClickPathSecret data:,password:very%20secret%20password
+
+        here a data-URL is used that produces the content "password:very
+        secret password".
+
+        The URL's content is fetched by LWP::UserAgent once at server
+        startup.
+
+        Its content defines the secret either in binary form or as string of
+        hexadecimal characters or as a password. If it starts with "binary:"
+        the rest of the content is taken as is as the key. If it starts with
+        "hex:" "pack( 'H*', $arg )" is used to convert it to binary. If it
+        starts with "password:" or with neither of them the MD5 digest of
+        the rest of the content is used as secret.
+
+        The Blowfish algorithm allows up to 56 bytes as secret. In hex and
+        binary mode the starting 56 bytes are used. You can specify more
+        bytes but they won't be regarded. In password mode the MD5 algorithm
+        produces 16 bytes long secret.
 
   Working with a load balancer
     Most load balancers are able to map a request to a particular machine

@@ -5,9 +5,15 @@ use warnings;
 no warnings qw{uninitialized};
 use Apache2::ClickPath::_parse;
 use MIME::Base64 ();
+use Crypt::CBC ();
+use Crypt::Blowfish ();
+use Digest::MD5 ();
+use Digest::CRC ();
 use Class::Member qw{friendly_session
 		     tag
 		     server_map
+		     secret
+		     secret_iv
 		     session
 		     remote_session_host remote_session
 		     server_id
@@ -17,7 +23,7 @@ use Class::Member qw{friendly_session
 		     seq_number
 		     connection_id};
 
-our $VERSION='1.7';
+our $VERSION='1.8';
 
 sub new {
   my $class=shift;
@@ -33,7 +39,7 @@ sub new {
     bless $I=>$class;
   }
 
-  foreach my $m (qw{friendly_session tag server_map session}) {
+  foreach my $m (qw{friendly_session tag server_map session secret secret_iv}) {
     $I->$m=$o{$m} if( exists $o{$m} );
   }
 
@@ -120,13 +126,39 @@ sub parse {
 
   my $len4=do {use integer; (length( $l[1] )+3)/4;};
   $len4*=4;
-  ($I->creation_time,
+  $l[1]=MIME::Base64::decode_base64( $l[1].('='x($len4-length( $l[1] ))) );
+  if( $I->secret ) {
+    my $secret=Apache2::ClickPath::_parse::Secret( $I->secret );
+    my $iv;
+    if( length $I->secret_iv ) {
+      $iv=substr( Digest::MD5::md5( $I->secret_iv ), 0, 8 );
+    } else {
+      $iv="abcd1234";
+    }
+    my $crypt=Crypt::CBC->new( {key=>$secret,
+				cipher=>'Blowfish',
+				iv=>$iv,
+				regenerate_key=>0,
+				prepend_iv=>0} );
+    $l[1]=$crypt->decrypt( $l[1] );
+  }
+
+  my $crc;
+  if( length( $l[1] ) ) {
+    $crc=Digest::CRC::crc8( substr( $l[1], 1 ) );
+  } else {
+    $crc=-1;			# invalid value
+  }
+
+  @l=unpack( "CNNnN", $l[1] );
+
+  die "Invalid session: CRC checksum failed" if( $crc!=$l[0] );
+
+  (undef,
+   $I->creation_time,
    $I->server_pid,
    $I->seq_number,
-   $I->connection_id)=
-     unpack( "NNnNn",
-	     MIME::Base64::decode_base64( $l[1].
-					  ('='x($len4-length( $l[1] ))) ) );
+   $I->connection_id)=@l;
 
   return $I;
 }
@@ -176,6 +208,10 @@ parameters are recognized:
 =item B<tag>
 
 =item B<server_map>
+
+=item B<secret>
+
+=item B<secret_iv>
 
 for these 3 see the appropriate member functions below.
 
@@ -244,6 +280,14 @@ is then used to map a server name to a server_id (IP address).
 
 Also a HASH can be given instead of a string. Then this hash maps the
 server_name to a server_id.
+
+=item B<secret>
+
+=item B<secret_iv>
+
+these 2 functions correspond to the C<ClickPathSecret> and C<ClickPathSecretIV>
+configuration directives of L<Apache2::ClickPath>. Syntax and semantic are the
+same.
 
 =item B<session>
 

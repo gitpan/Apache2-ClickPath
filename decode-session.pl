@@ -25,6 +25,8 @@ sub main {
 		    close $fh;
 		  },
 		  'server_map:s'=>sub {$decoder->server_map=$_[1]},
+		  'secret=s'=>sub {$decoder->secret=$_[1]},
+		  'iv=s'=>sub {$decoder->secret_iv=$_[1]},
 		  help=>\$help,
 		  manual=>\$man,
 		 ) ||
@@ -86,6 +88,14 @@ See the L<Apache2::ClickPath::Decode(3)> manpage for more information.
 The C<FILENAME> argument to the C<--server_map> option is optional.
 Currently calling it with a C<--server_map> argument other than an
 empty string is not supported and gives a warning.
+
+=item B<--secret STRING>
+
+=item B<--iv STRING>
+
+Thes 2 parameters correspond to the C<ClickPathSecret> and C<ClickPathSecretIV>
+configuration directives of L<Apache2::ClickPath>. Syntax and semantic are the
+same.
 
 =back
 

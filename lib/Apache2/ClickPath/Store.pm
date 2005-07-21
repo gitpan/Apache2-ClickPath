@@ -30,7 +30,7 @@ use Cwd ();
 use Perl::AtEndOfScope;
 use Fcntl qw/:flock/;
 
-our $VERSION = '1.7';
+our $VERSION = '1.8';
 
 our $cleanupdefault=60;
 
@@ -146,7 +146,6 @@ sub cleanup {
   my ($c, $cfg)=@{$_[0]};
 
   my $d=$cfg->{"ClickPathStoreDirectory"};
-  my $V=$cfg->{"ClickPathStoreVerbosity"};
   my $tmout=$cfg->{"ClickPathStoreTimeout"};
   my $interval=$cfg->{"ClickPathStoreCleanupInterval"}||$cleanupdefault;
   my $time=time;
@@ -178,11 +177,12 @@ sub cleanup {
 	$c->base_server->log->error('['.__PACKAGE__."] Cannot opendir $d: $!");
 	return;
       };
-
+    my @l=readdir $D;
+    closedir $D;
 
     $c->base_server->log->debug("Cleaning up $d");
 
-    while( my $el=readdir $D ) {
+    foreach my $el (@l) {
       next if( $el=~/^\.\.?$/ ); # skip . and ..
       next if( $el eq '#lastcleanup' );
 
@@ -206,7 +206,6 @@ sub cleanup {
 	}
       }
     }
-    closedir $D;
   }
 }
 

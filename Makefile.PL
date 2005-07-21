@@ -14,6 +14,9 @@ my %require =
   (
    "Apache::Test" => "", # any version will do
    mod_perl=>1.999022,
+   "LWP::UserAgent" => '',
+   "Crypt::CBC" => '',
+   "Crypt::Blowfish" => '',
   );
 my @scripts = qw(t/TEST);
 

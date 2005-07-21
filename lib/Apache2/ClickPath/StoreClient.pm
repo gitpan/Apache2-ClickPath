@@ -9,7 +9,7 @@ use LWP::UserAgent;
 use LWP::ConnCache;
 use Class::Member qw{session store store_is_local ua lasterror _r};
 
-our $VERSION = '1.7';
+our $VERSION = '1.8';
 
 my $MOD_PERL;
 
@@ -42,11 +42,6 @@ sub new {
     $I->store=$I->_r->subprocess_env('ClickPathMachineStore');
 
     $I->store_is_local=$I->store=~m!^/!;
-#    if( $I->store=~m!^/! ) {
-#      my $https=($I->_r->subprocess_env('HTTPS')=~/on/i ? 'https' : 'http');
-#      $I->store=("$https://".$I->_r->get_server_name.":".
-#		 $I->_r->get_server_port.$I->store);
-#    }
   } else {
     $I->session=$ENV{SESSION};
     $I->store=$ENV{ClickPathMachineStore};

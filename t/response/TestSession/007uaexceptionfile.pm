@@ -11,8 +11,7 @@ sub handler {
   my $what=$r->args;
   $what="UAExceptions" unless( length $what );
   $r->content_type('text/plain');
-  $r->print( Apache2::Module::get_config
-	     ('Apache2::ClickPath', $r->server, $r->per_dir_config)
+  $r->print( Apache2::Module::get_config('Apache2::ClickPath', $r->server)
 	     ->{"ClickPath${what}File_read_time"} );
 
   return Apache2::Const::OK;
