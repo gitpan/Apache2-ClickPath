@@ -12,8 +12,8 @@ Requires:     p_mod_perl >= 1.999022
 Requires:     perl-Crypt-CBC >= 2.14
 Autoreqprov:  on
 Summary:      Apache2::ClickPath
-Version:      1.10
-Release:      2
+Version:      1.900
+Release:      3
 Source:       Apache2-ClickPath-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
@@ -58,7 +58,7 @@ rm -f $RPM_BUILD_ROOT%{manbase}/man3/Apache2::decode-session.3pm
 %files
 %defattr(-, root, root)
 %{instbase}/Apache2
-%{instbase}/i586-linux-thread-multi/auto/Apache2
+%{archbase}/auto/Apache2
 %doc %{manbase}/man3/Apache2::ClickPath.3pm.gz
 %doc %{manbase}/man3/Apache2::ClickPath::Decode.3pm.gz
 %doc %{manbase}/man3/Apache2::ClickPath::Store.3pm.gz

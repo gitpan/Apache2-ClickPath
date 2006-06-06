@@ -29,7 +29,7 @@ use Digest::CRC ();
 
 use Apache2::ClickPath::_parse ();
 
-our $VERSION = '1.10';
+our $VERSION = '1.900';
 our $rcounter=int rand 0x10000;
 
 my @directives=

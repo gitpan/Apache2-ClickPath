@@ -24,7 +24,7 @@ use Class::Member qw{friendly_session
 		     connection_id
 		     debug};
 
-our $VERSION='1.10';
+our $VERSION='1.900';
 
 sub new {
   my $class=shift;
