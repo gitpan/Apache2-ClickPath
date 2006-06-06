@@ -1,4 +1,13 @@
 Revision history for Perl extension Apache::ClickPath
+1.10  Thu Jun  1 13:40:55 CEST 2006
+	* Torsten Foertsch <torsten.foertsch@gmx.net>
+	- Crypt::CBC interface has changed
+
+1.9   Sun Oct 30 20:15:24 CET 2005
+	* Torsten Foertsch <torsten.foertsch@gmx.net>
+	- using Apache2::URL::parse_uri instead of $r->uri
+	  to set the uri after cutting the session off
+
 1.8   Sun Jul 17 13:52:56 CEST 2005
 	* Torsten Foertsch <torsten.foertsch@gmx.net>
 	- ClickPathSecret, ClickPathSecretIV  directives

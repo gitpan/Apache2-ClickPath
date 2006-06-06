@@ -9,9 +9,7 @@ use File::Spec;
 {
   my $f;
   sub t_start_error_log_watch {
-    my $name=File::Spec->catfile
-      ( Apache::Test::vars->{serverroot},
-	Apache::Test::config->{httpd_defines}->{DEFAULT_ERRORLOG} );
+    my $name=File::Spec->catfile( Apache::Test::vars->{t_logs}, 'error_log' );
     open $f, "$name" or die "ERROR: Cannot open $name: $!\n";
     seek $f, 0, 2;
   }
@@ -86,13 +84,16 @@ ok t_cmp( $res->code, 200, 'no timeout yet' );
 
 sleep 3;
 Apache::TestRequest::user_agent( reset=>1, keep_alive=>0 );
-$res=GET( "/store?a=get;s=$session;k=klaus" );
+sleep 1;
 ok t_cmp( -d "t/store/#$session", 1, 'session marked for deletion (renamed)' );
+
+$res=GET( "/store?a=get;s=$session;k=klaus" );
 ok t_cmp( $res->code, 404, 'data not accessible' );
 
 sleep 3;
 $res=GET( "/store?a=get;s=$session;k=klaus" ); # let cleanup() run once again
 sleep 1;			# and give it time to accomplish the task
+$res=GET( "/store?a=get;s=$session;k=klaus" );
 $res=GET( "/store?a=get;s=$session;k=klaus" );
 ok t_cmp( $res->code, 404, 'session store deleted => NOT_FOUND' );
 ok t_cmp( -d "t/store/#$session", undef, 'session directory deleted' );
@@ -130,12 +131,14 @@ ok t_cmp( $res->code, 200, 'no timeout yet (Secret)' );
 
 sleep 3;
 Apache::TestRequest::user_agent( reset=>1, keep_alive=>0 );
-$res=GET( "/store?a=get;s=$session;k=klaus" );
+sleep 1;
 ok t_cmp( -d "t/store/#$session", 1,
 	  'session marked for deletion (renamed) (Secret)' );
+
+$res=GET( "/store?a=get;s=$session;k=klaus" );
 ok t_cmp( $res->code, 404, 'data not accessible (Secret)' );
 
-sleep 3;
+sleep 2;
 $res=GET( "/store?a=get;s=$session;k=klaus" ); # let cleanup() run once again
 sleep 1;			# and give it time to accomplish the task
 $res=GET( "/store?a=get;s=$session;k=klaus" );

@@ -30,7 +30,7 @@ use Cwd ();
 use Perl::AtEndOfScope;
 use Fcntl qw/:flock/;
 
-our $VERSION = '1.8';
+our $VERSION = '1.9';
 
 our $cleanupdefault=60;
 
@@ -456,7 +456,7 @@ set an URI where the store is located. That directive effectively created
 a C<< <Location> >> section where the store runs. The following lines have
 the same effect as C<ClickPathStorePath /store>:
 
- <Location>
+ <Location /store>
      SetHandler modperl
      PerlResponseHandler Apache2::ClickPath::Store::handler
  </Location>

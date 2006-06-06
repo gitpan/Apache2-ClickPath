@@ -21,9 +21,10 @@ use Class::Member qw{friendly_session
 		     creation_time
 		     server_pid
 		     seq_number
-		     connection_id};
+		     connection_id
+		     debug};
 
-our $VERSION='1.8';
+our $VERSION='1.10';
 
 sub new {
   my $class=shift;
@@ -135,11 +136,14 @@ sub parse {
     } else {
       $iv="abcd1234";
     }
-    my $crypt=Crypt::CBC->new( {key=>$secret,
-				cipher=>'Blowfish',
-				iv=>$iv,
-				regenerate_key=>0,
-				prepend_iv=>0} );
+    my $crypt=Crypt::CBC->new(
+			      -key=>$secret,
+			      -keysize=>length($secret),
+			      -cipher=>'Crypt::Blowfish',
+			      -literal_key=>1,
+			      -header=>'none',
+			      -iv=>$iv,
+			     );
     $l[1]=$crypt->decrypt( $l[1] );
   }
 

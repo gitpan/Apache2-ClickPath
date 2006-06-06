@@ -6,7 +6,7 @@ use Digest::MD5 ();
 use LWP::UserAgent ();
 use HTTP::Response ();
 
-our $VERSION = '1.8';
+our $VERSION = '1.9';
 
 {
   package Apache2::ClickPath::_parse::UA;

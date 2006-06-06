@@ -15,7 +15,7 @@ my %require =
    "Apache::Test" => "", # any version will do
    mod_perl=>1.999022,
    "LWP::UserAgent" => '',
-   "Crypt::CBC" => '',
+   "Crypt::CBC" => '2.14',
    "Crypt::Blowfish" => '',
   );
 my @scripts = qw(t/TEST);
@@ -54,7 +54,6 @@ README: lib/Apache2/ClickPath.pm mk_README.sh
 	./mk_README.sh
 
 rpm: dist
-	rpmbuild -bb perl-Apache2-ClickPath.spec && \
-	rpmbuild -bs perl-Apache2-ClickPath.spec
+	rpmbuild -ba perl-Apache2-ClickPath.spec
 EOF
 }

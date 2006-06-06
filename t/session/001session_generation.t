@@ -9,9 +9,7 @@ use File::Spec;
 {
   my $f;
   sub t_start_error_log_watch {
-    my $name=File::Spec->catfile
-      ( Apache::Test::vars->{serverroot},
-	Apache::Test::config->{httpd_defines}->{DEFAULT_ERRORLOG} );
+    my $name=File::Spec->catfile( Apache::Test::vars->{t_logs}, 'error_log' );
     open $f, "$name" or die "ERROR: Cannot open $name: $!\n";
     seek $f, 0, 2;
   }

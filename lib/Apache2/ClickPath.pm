@@ -16,6 +16,7 @@ use Apache2::Module ();
 use Apache2::CmdParms ();
 use Apache2::Directive ();
 use Apache2::Log ();
+use Apache2::URI ();
 use Apache2::Const -compile => qw(DECLINED OK
 				  OR_ALL RSRC_CONF
 				  TAKE1 RAW_ARGS NO_ARGS);
@@ -28,7 +29,7 @@ use Digest::CRC ();
 
 use Apache2::ClickPath::_parse ();
 
-our $VERSION = '1.8';
+our $VERSION = '1.10';
 our $rcounter=int rand 0x10000;
 
 my @directives=
@@ -370,7 +371,7 @@ sub handler {
     $ref=~s!^(\w+://[^/]+)/+\Q$tag\E[^/]+!$1!;
     $r->headers_in->{Referer}=$ref;
 
-    $r->uri( $file );
+    $r->parse_uri( 'http://localhost'.$file.(length $r->args ? '?'.$r->args : '') );
     $r->subprocess_env( SESSION=>$session );
     $r->subprocess_env( CGI_SESSION=>'/'.$tag.$session );
 
@@ -416,11 +417,14 @@ sub handler {
     $l[1]=MIME::Base64::decode_base64( $l[1].('='x($len4-length( $l[1] ))) );
 
     if( exists $cf->{ClickPathSecret} ) {
-      my $crypt=Crypt::CBC->new( {key=>$cf->{ClickPathSecret},
-				  cipher=>'Blowfish',
-				  iv=>$cf->{ClickPathSecretIV},
-				  regenerate_key=>0,
-				  prepend_iv=>0} );
+      my $crypt=Crypt::CBC->new(
+				-key=>$cf->{ClickPathSecret},
+				-keysize=>length($cf->{ClickPathSecret}),
+				-cipher=>'Crypt::Blowfish',
+				-literal_key=>1,
+				-header=>'none',
+				-iv=>$cf->{ClickPathSecretIV},
+			       );
       $l[1]=$crypt->decrypt( $l[1] );
     }
 
@@ -546,11 +550,14 @@ sub handler {
       $session=pack( 'C', Digest::CRC::crc8( $session ) ).$session;
 
       if( exists $cf->{ClickPathSecret} ) {
-	my $crypt=Crypt::CBC->new( {key=>$cf->{ClickPathSecret},
-				    cipher=>'Blowfish',
-				    iv=>$cf->{ClickPathSecretIV},
-				    regenerate_key=>0,
-				    prepend_iv=>0} );
+	my $crypt=Crypt::CBC->new(
+				  -key=>$cf->{ClickPathSecret},
+				  -keysize=>length($cf->{ClickPathSecret}),
+				  -cipher=>'Crypt::Blowfish',
+				  -literal_key=>1,
+				  -header=>'none',
+				  -iv=>$cf->{ClickPathSecretIV},
+				 );
 	$session=$crypt->encrypt( $session );
       }
       $session=MIME::Base64::encode_base64( $session, '' );

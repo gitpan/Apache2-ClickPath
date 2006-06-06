@@ -84,6 +84,7 @@ $decoder->server_map=+{B=>['127.0.0.11'], A=>['127.0.0.1']};
 $decoder->parse( 'http://localhost/-S:'.$s4.'/bla' );
 ok t_cmp( $decoder->server_id, '127.0.0.11', 's4 server_id (HASH mach table)' );
 
+$decoder->debug=1;
 $decoder->secret='data:,So%20long%20and%20thanks%20for%20all%20the%20fish';
 $decoder->parse( 'http://localhost/-S:'.$s5.'/bla' );
 ok t_cmp( $decoder->server_id, '127.0.0.1', 'server_id (Secret)' );

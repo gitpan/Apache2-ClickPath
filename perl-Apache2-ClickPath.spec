@@ -1,16 +1,19 @@
-BuildRequires: aaa_base acl attr bash bind-utils bison bzip2 coreutils cpio cpp cracklib cvs cyrus-sasl db devs diffutils e2fsprogs file filesystem fillup findutils flex gawk gdbm-devel glibc glibc-devel glibc-locale gpm grep groff gzip info insserv kbd less libacl libattr libgcc libselinux libstdc++ libxcrypt m4 make man mktemp module-init-tools ncurses ncurses-devel net-tools netcfg openldap2-client openssl pam pam-modules patch permissions popt procinfo procps psmisc pwdutils rcs readline sed strace syslogd sysvinit tar tcpd texinfo timezone unzip util-linux vim zlib zlib-devel autoconf automake binutils gcc gdbm gettext libtool perl rpm
+%define instbase %(perl -Mmod_perl2 -MConfig -e '$d=$INC{"mod_perl2.pm"};$d=~s!(?:/[^/]+){2}$!!; print($d=~m!^/opt!?$d:$Config{vendorlib});')
+%define archbase %(perl -Mmod_perl2 -MConfig -e '$d=$INC{"mod_perl2.pm"};$d=~s!(?:/[^/]+){1}$!!; print($d=~m!^/opt!?$d:$Config{vendorarch});')
+%define binbase  %(perl -Mmod_perl2 -MConfig -e '$d=$INC{"mod_perl2.pm"};$d=~s!(?:/[^/]+){3}$!!; print($d=~m!^/opt!?$d."/bin":$Config{vendorbin});')
+%define manbase  %(perl -Mmod_perl2 -MConfig -e '$d=$INC{"mod_perl2.pm"};$d=~s!(?:/[^/]+){3}$!!; print($d=~m!^/opt!?$d."/man":do{$x=$Config{vendorman3dir}; $x=~s!/[/]+$!!;$x;});')
+%define namebase %(perl -Mmod_perl2 -e '$d=$INC{"mod_perl2.pm"};$d=~s!(?:/[^/]+){4}$!!;$d=~tr!/!-!;print(($d=~/^-opt/?$d:"")."-Apache2-ClickPath");')
 
-Name:         perl-Apache2-ClickPath
+Name:         perl%{namebase}
 License:      Artistic License
 Group:        Development/Libraries/Perl
-Provides:     p_Apache2_ClickPath
-Obsoletes:    p_Apache2_ClickPath
 Requires:     perl = %{perl_version}
 Requires:     p_mod_perl >= 1.999022
+Requires:     perl-Crypt-CBC >= 2.14
 Autoreqprov:  on
 Summary:      Apache2::ClickPath
-Version:      1.8
-Release:      1
+Version:      1.10
+Release:      2
 Source:       Apache2-ClickPath-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
@@ -34,12 +37,19 @@ make && make test
 
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
-make DESTDIR=$RPM_BUILD_ROOT install_vendor
-rm -f $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::decode-session.3pm
-%{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath.3pm || true
-%{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath::Decode.3pm || true
-%{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath::Store.3pm || true
-%{_gzipbin} -9 $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::ClickPath::StoreClient.3pm || true
+make DESTDIR=$RPM_BUILD_ROOT \
+     INSTALLSITEARCH=%{archbase} \
+     INSTALLSITELIB=%{instbase} \
+     INSTALLSITEBIN=%{binbase} \
+     INSTALLSCRIPT=%{binbase} \
+     INSTALLSITEMAN1DIR=%{manbase}/man1 \
+     INSTALLSITEMAN3DIR=%{manbase}/man3 \
+     install
+rm -f $RPM_BUILD_ROOT%{manbase}/man3/Apache2::decode-session.3pm
+%{_gzipbin} -9 $RPM_BUILD_ROOT%{manbase}/man3/Apache2::ClickPath.3pm || true
+%{_gzipbin} -9 $RPM_BUILD_ROOT%{manbase}/man3/Apache2::ClickPath::Decode.3pm || true
+%{_gzipbin} -9 $RPM_BUILD_ROOT%{manbase}/man3/Apache2::ClickPath::Store.3pm || true
+%{_gzipbin} -9 $RPM_BUILD_ROOT%{manbase}/man3/Apache2::ClickPath::StoreClient.3pm || true
 %perl_process_packlist
 
 %clean
@@ -47,11 +57,11 @@ rm -f $RPM_BUILD_ROOT%{_mandir}/man3/Apache2::decode-session.3pm
 
 %files
 %defattr(-, root, root)
-%{perl_vendorlib}/Apache2
-%{perl_vendorarch}/auto/Apache2
-%doc %{_mandir}/man3/Apache2::ClickPath.3pm.gz
-%doc %{_mandir}/man3/Apache2::ClickPath::Decode.3pm.gz
-%doc %{_mandir}/man3/Apache2::ClickPath::Store.3pm.gz
-%doc %{_mandir}/man3/Apache2::ClickPath::StoreClient.3pm.gz
-/var/adm/perl-modules/perl-Apache2-ClickPath
+%{instbase}/Apache2
+%{instbase}/i586-linux-thread-multi/auto/Apache2
+%doc %{manbase}/man3/Apache2::ClickPath.3pm.gz
+%doc %{manbase}/man3/Apache2::ClickPath::Decode.3pm.gz
+%doc %{manbase}/man3/Apache2::ClickPath::Store.3pm.gz
+%doc %{manbase}/man3/Apache2::ClickPath::StoreClient.3pm.gz
+/var/adm/perl-modules/%{name}
 %doc MANIFEST README
