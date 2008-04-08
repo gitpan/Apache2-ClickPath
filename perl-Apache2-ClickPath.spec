@@ -12,7 +12,7 @@ Requires:     p_mod_perl >= 1.999022
 Requires:     perl-Crypt-CBC >= 2.14
 Autoreqprov:  on
 Summary:      Apache2::ClickPath
-Version:      1.900
+Version:      1.901
 Release:      3
 Source:       Apache2-ClickPath-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build

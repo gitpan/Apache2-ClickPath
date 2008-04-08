@@ -44,6 +44,7 @@ t_debug( "using session $session" );
 t_client_log_error_is_expected(2);
 t_start_error_log_watch;
 $res=GET( "/store?a=set;s=$session;k=klaus;v=value" );
+select undef, undef, undef, .5;	# sleep for a while
 my @errors=grep {/\[error\]/} t_finish_error_log_watch();
 ok t_cmp( $errors[0],
 	  qr/\[Apache2::ClickPath::Store\] Cannot create directory/,
